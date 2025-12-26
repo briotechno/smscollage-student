@@ -1,0 +1,339 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Check } from "lucide-react";
+import { useToast } from "@/components/Toast/ToastProvider";
+import adminFetch from "@/lib/adminFetch";
+
+interface RequirementData {
+  id: string;
+  title: string;
+  department: string;
+  deadline: string;
+  file?: string;
+  notification_file?: string;
+}
+
+interface RequirementResponse {
+  success: boolean;
+  data?: RequirementData;
+  message?: string;
+}
+
+interface FileUploadResponse {
+  success: boolean;
+  url?: string;
+  message?: string;
+  ok?: boolean;
+}
+
+const EditRequirementClient = () => {
+  const router = useRouter();
+  const params = useSearchParams();
+  const requirementId = params.get("id");
+  const { showToast } = useToast();
+
+  const [form, setForm] = useState<RequirementData>({
+    id: requirementId || "",
+    title: "",
+    department: "",
+    deadline: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [notificationUploading, setNotificationUploading] = useState(false);
+  const [notificationFileUrl, setNotificationFileUrl] = useState<string | null>(null);
+  const [notificationFileName, setNotificationFileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!requirementId) return;
+
+    const fetchRequirement = async () => {
+      try {
+        setLoading(true);
+        const res = await adminFetch(`/api/requirements?id=${requirementId}`);
+        const data = await res.json() as RequirementResponse;
+
+        if (data.success && data.data) {
+          const { title, department, deadline, file, notification_file } = data.data;
+          setForm({
+            id: requirementId,
+            title,
+            department,
+            deadline,
+            file,
+            notification_file,
+          });
+
+          if (file) {
+            setUploadedFileUrl(file);
+            setUploadedFileName(file.substring(file.lastIndexOf("/") + 1).split("?")[0]);
+          }
+
+          if (notification_file) {
+            setNotificationFileUrl(notification_file);
+            setNotificationFileName(
+              notification_file.substring(notification_file.lastIndexOf("/") + 1).split("?")[0]
+            );
+          }
+        } else {
+          throw new Error(data.message || "Failed to fetch requirement details");
+        }
+      } catch (error) {
+        console.error(error);
+        showToast({
+          type: "error",
+          title: "Error",
+          message: error instanceof Error ? error.message : "Failed to fetch requirement",
+        });
+        router.push("/admin/requirements");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRequirement();
+  }, [requirementId, router, showToast]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "file" | "notification") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      showToast({
+        type: "error",
+        title: "Invalid file",
+        message: "Only PDF files are allowed",
+      });
+      return;
+    }
+
+    const setUploading = type === "file" ? setFileUploading : setNotificationUploading;
+    const setFileUrl = type === "file" ? setUploadedFileUrl : setNotificationFileUrl;
+    const setFileName = type === "file" ? setUploadedFileName : setNotificationFileName;
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("image", file, file.name);
+
+      const res = await adminFetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json() as FileUploadResponse;
+
+      if (data.success && data.url) {
+        setFileUrl(data.url);
+        setFileName(file.name);
+        showToast({
+          type: "success",
+          title: "Uploaded",
+          message: `${type === "file" ? "File" : "Notification"} uploaded successfully`,
+        });
+      } else {
+        throw new Error(data.message || `Failed to upload ${type}`);
+      }
+    } catch (error) {
+      console.error(error);
+      showToast({
+        type: "error",
+        title: "Upload error",
+        message: error instanceof Error ? error.message : `Failed to upload ${type}`,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!requirementId) return;
+
+    if (!form.title || !form.department || !form.deadline) {
+      showToast({
+        type: "error",
+        title: "Validation",
+        message: "Please fill all required fields",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const payload = {
+        ...form,
+        file: uploadedFileUrl || undefined,
+        notification_file: notificationFileUrl || undefined,
+      };
+
+      const res = await adminFetch("/api/requirements/edit", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: requirementId, ...payload }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast({
+          type: "success",
+          title: "Success",
+          message: "Requirement updated successfully",
+        });
+        router.push("/admin/requirements");
+        router.refresh();
+      } else {
+        throw new Error(data.message || "Failed to update requirement");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast({
+        type: "error",
+        title: "Error",
+        message: error instanceof Error ? error.message : "Failed to update requirement",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back to Requirements
+        </button>
+      </div>
+
+      <div className="max-w-3xl mx-auto">
+        <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-lg shadow-sm p-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Enter requirement title"
+              className="w-full px-4 py-3 border rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+            <input
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+              placeholder="Enter department name"
+              className="w-full px-4 py-3 border rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+            <input
+              type="date"
+              value={form.deadline}
+              onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+              className="w-full px-4 py-3 border rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Requirement Document (PDF)
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-700">
+                {uploadedFileName ?? "No file selected"}
+              </div>
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 disabled:opacity-50">
+                {fileUploading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-b-transparent"></div>
+                ) : (
+                  "Upload PDF"
+                )}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e, "file")}
+                  disabled={fileUploading}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notification File (PDF)
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-700">
+                {notificationFileName ?? "No file selected"}
+              </div>
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-md cursor-pointer hover:bg-purple-600 disabled:opacity-50">
+                {notificationUploading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-b-transparent"></div>
+                ) : (
+                  "Upload PDF"
+                )}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e, "notification")}
+                  disabled={notificationUploading}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-4 py-2 border rounded hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || fileUploading || notificationUploading}
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-b-transparent"></div>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" /> Save Changes
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditRequirementClient;

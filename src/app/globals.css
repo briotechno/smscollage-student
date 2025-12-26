@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --purple: '#d261e5';
+  --dark: '#000000';
+  --light: '#ffffff';
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Custom Cursor Styles */
+* {
+  cursor: default;
+}
+
+/* Default body cursor */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  cursor: default;
+}
+
+/* Links and interactive elements */
+a, 
+button,
+[role="button"],
+select,
+input[type="submit"],
+input[type="button"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+/* Text inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  cursor: text;
+}
+
+/* Hover states for cards and interactive containers */
+.hover\:cursor-pointer:hover {
+  cursor: pointer;
+}
+
+/* Loading states */
+.animate-spin,
+.loading {
+  cursor: wait;
+}
+
+/* Disabled elements */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+.disabled {
+  cursor: not-allowed !important;
+}
+
+/* Resizable elements */
+textarea,
+.resize {
+  cursor: auto;
+}
+
+/* Draggable elements */
+[draggable="true"] {
+  cursor: move;
+}
+
+/* Help cursor for tooltip elements */
+[data-tooltip],
+.tooltip {
+  cursor: help;
+}
+
+/* Custom style for download links */
+a[download],
+.download-link {
+  cursor: pointer;
+}
+::selection {
+  background-color: #7e22ce40; /* Purple with 40% opacity */
+  color: #7e22ce; /* Purple */
+}
+
+::-moz-selection {
+  background-color: #7e22ce40;
+  color: #7e22ce;
+}
+
+/* Themed scrollbars (WebKit browsers + Firefox) */
+/* Matches the purple theme used across the site */
+/* WebKit (Chrome, Edge, Safari) */
+html, body {
+  scrollbar-width: thin; /* Firefox fallback */
+  scrollbar-color: #7e22ce #f1f1f1; /* thumb track (Firefox) */
+}
+
+/* WebKit scrollbar sizing */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6; /* light track */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #7e22ce; /* purple */
+  border-radius: 9999px;
+  border: 3px solid #f3f4f6; /* create padding around the thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #5b21b6; /* darker purple on hover */
+}
+
+/* Make scrollable elements with light backgrounds use a subtle track */
+.bg-white ::-webkit-scrollbar-track,
+.bg-gray-50 ::-webkit-scrollbar-track {
+  background: #f7fafc;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    scrollbar-color: #9f7aea #0b1220; /* lighter purple on dark track */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0b1220;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #9f7aea;
+    border: 3px solid #0b1220;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #7c3aed;
+  }
+}
+
+/* Utility: ensure scrollbars inside scrollable containers also receive theme */
+.overflow-auto::-webkit-scrollbar,
+.overflow-scroll::-webkit-scrollbar {
+  width: 10px;
+}
